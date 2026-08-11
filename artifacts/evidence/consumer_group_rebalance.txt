@@ -1,0 +1,74 @@
+# Evidencia de escalamiento y rebalanceo del consumer group
+
+Fecha de ejecución: 2026-08-10T21:42:55-06:00
+Commit de código: 6404c8d
+Grupo: `agro-sensor-processors`
+Topic: `agro.sensor-readings`
+
+## Tres miembros iniciales
+
+Comando:
+`docker compose up -d --scale consumer=3 --no-build`
+
+Estado observado: los tres contenedores `agrostream-consumer-1`, `agrostream-consumer-2` y `agrostream-consumer-3` quedaron `healthy`.
+
+Estado del grupo:
+
+```text
+ASSIGNMENT-STRATEGY  STATE    #MEMBERS
+cooperative-sticky   Stable   3
+```
+
+Asignación observada:
+
+```text
+consumer-c103c6da  #PARTITIONS=2  (0,2)
+consumer-c5016744  #PARTITIONS=2  (4,5)
+consumer-468bd047  #PARTITIONS=2  (1,3)
+```
+
+Lag observado en las seis particiones: `0`.
+
+## Rebalanceo con consumer-2 detenido
+
+Para evitar que `restart: unless-stopped` lo levantara automáticamente se ejecutó manualmente:
+
+```text
+docker update --restart=no agrostream-consumer-2
+docker stop agrostream-consumer-2
+```
+
+Estado del grupo:
+
+```text
+ASSIGNMENT-STRATEGY  STATE    #MEMBERS
+cooperative-sticky   Stable   2
+```
+
+Asignación durante la interrupción:
+
+```text
+consumer-c103c6da  #PARTITIONS=3  (0,2,3)
+consumer-c5016744  #PARTITIONS=3  (1,4,5)
+```
+
+Las seis particiones permanecieron asignadas y el lag fue `0` en todas.
+
+## Recuperación
+
+Se restauró la política y se levantó el contenedor:
+
+```text
+docker update --restart=unless-stopped agrostream-consumer-2
+docker start agrostream-consumer-2
+```
+
+Resultado real: los tres consumidores quedaron `healthy`, el grupo volvió a `Stable` con `#MEMBERS=3`, y la distribución volvió a ser 2 particiones por consumidor:
+
+```text
+consumer-c103c6da  (2,3)
+consumer-a8b2cea1  (0,1)
+consumer-c5016744  (4,5)
+```
+
+Lag final: `0` en las seis particiones.
