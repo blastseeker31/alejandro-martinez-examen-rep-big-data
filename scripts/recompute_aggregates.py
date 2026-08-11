@@ -82,7 +82,7 @@ def recompute() -> dict[str, float | int]:
     )
     if documents:
         database[temporary_name].insert_many(documents, ordered=True)
-    database.command(
+    client.admin.command(
         "renameCollection",
         f"{database_name}.{temporary_name}",
         to=f"{database_name}.parcel_aggregates",
