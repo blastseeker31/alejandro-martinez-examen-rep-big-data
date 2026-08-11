@@ -103,14 +103,20 @@ Este archivo es el control operativo del proyecto. Se actualiza después de cada
 
 ### Fase 1 — Base
 
-- Estado: en progreso.
-- Commits: pendiente.
-- Pruebas: pendiente.
+- Estado: completada.
+- Commit: `6cd0866 Inicio la estructura base del proyecto`.
+- Pruebas: 12/12 pruebas unitarias; Ruff y compilación correctos.
+- Repositorio: https://github.com/blastseeker31/alejandro-martinez-examen-rep-big-data
 
 ### Fase 2 — Infraestructura
 
-- Estado: pendiente.
-- Evidencia: pendiente.
+- Estado: completada.
+- Commit: pendiente de publicar.
+- Kafka: Apache Kafka 3.9.1 en KRaft, broker único local.
+- Topics verificados: `agro.sensor-readings` con 6 particiones; DLQ y alertas con 3 cada uno.
+- MongoDB: 7.0, autenticación local y colecciones/índices inicializados.
+- Kafka UI: HTTP 200 en `http://localhost:8081`.
+- Limitación documentada: replication factor 1 no ofrece alta disponibilidad real.
 
 ### Fase 3 — Productor
 

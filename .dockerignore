@@ -1,0 +1,11 @@
+.git
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+.gitignore
+.env
+artifacts/runtime
+mongodb-data
+kafka-data
