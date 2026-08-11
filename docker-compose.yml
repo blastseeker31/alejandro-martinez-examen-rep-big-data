@@ -127,6 +127,9 @@ services:
       MONGO_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/${MONGO_DATABASE:-agrostream}?authSource=admin
       MONGO_DATABASE: ${MONGO_DATABASE:-agrostream}
       CONSUMER_POLL_TIMEOUT_SECONDS: ${CONSUMER_POLL_TIMEOUT_SECONDS:-1}
+      CONSUMER_HEARTBEAT_MAX_AGE_SECONDS: ${CONSUMER_HEARTBEAT_MAX_AGE_SECONDS:-30}
+      CONSUMER_RETRY_BACKOFF_SECONDS: ${CONSUMER_RETRY_BACKOFF_SECONDS:-1}
+      CONSUMER_RETRY_MAX_BACKOFF_SECONDS: ${CONSUMER_RETRY_MAX_BACKOFF_SECONDS:-30}
       ALERT_RATE_MEDIUM_PERCENT: ${ALERT_RATE_MEDIUM_PERCENT:-10}
       ALERT_RATE_HIGH_PERCENT: ${ALERT_RATE_HIGH_PERCENT:-30}
     depends_on:
@@ -135,7 +138,7 @@ services:
       mongo_init:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "test -f /tmp/agrostream_consumer_heartbeat"]
+      test: ["CMD-SHELL", "python scripts/check_consumer_heartbeat.py"]
       interval: 10s
       timeout: 5s
       retries: 12

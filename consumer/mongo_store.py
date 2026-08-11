@@ -39,8 +39,24 @@ class ProcessingStore:
     def get_reading(self, event_id: str) -> dict[str, Any] | None:
         return self.database.raw_readings.find_one({"event_id": event_id}, {"_id": 0})
 
-    def save_processing_error(self, document: dict[str, Any]) -> None:
-        self.database.processing_errors.insert_one(document)
+    def save_processing_error(self, document: dict[str, Any]) -> bool:
+        """Registra un inválido una sola vez por origen Kafka.
+
+        Devuelve ``True`` únicamente cuando el upsert insertó el primer
+        registro. Un redelivery puede republicarse a la DLQ, pero no duplica
+        el documento ni incrementa dos veces la métrica de inválidos.
+        """
+        key = {
+            "source_topic": document["source_topic"],
+            "source_partition": document["source_partition"],
+            "source_offset": document["source_offset"],
+        }
+        result = self.database.processing_errors.update_one(
+            key,
+            {"$setOnInsert": document},
+            upsert=True,
+        )
+        return result.upserted_id is not None
 
     def increment_metric(self, **counts: int) -> None:
         clean_counts = {key: int(value) for key, value in counts.items() if value}

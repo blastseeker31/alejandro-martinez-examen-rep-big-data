@@ -1,4 +1,3 @@
-
 from consumer.processor import ProcessOutcome, SensorEventProcessor
 from shared.generator import GenerationRequest, generate_batch
 
@@ -40,6 +39,7 @@ class FakeStore:
 
     def save_processing_error(self, document):
         self.errors.append(document)
+        return True
 
     def increment_metric(self, **kwargs):
         self.metrics.append(kwargs)
@@ -52,6 +52,33 @@ class FakeStore:
 
     def get_reading(self, event_id):
         return None
+
+
+class RecoveryStore(FakeStore):
+    def __init__(self, existing_reading):
+        super().__init__(duplicate=True)
+        self.existing_reading = existing_reading
+
+    def get_reading(self, event_id):
+        return self.existing_reading
+
+
+class IdempotentErrorStore(FakeStore):
+    def __init__(self):
+        super().__init__()
+        self.error_keys = set()
+
+    def save_processing_error(self, document):
+        key = (
+            document["source_topic"],
+            document["source_partition"],
+            document["source_offset"],
+        )
+        if key in self.error_keys:
+            return False
+        self.error_keys.add(key)
+        self.errors.append(document)
+        return True
 
 
 class FakeProducer:
@@ -114,3 +141,36 @@ def test_invalid_message_is_saved_and_sent_to_dlq():
     dlq_payload = dlq.published[0][1]
     assert dlq_payload["source_partition"] == 3
     assert dlq_payload["source_offset"] == 44
+
+
+def test_duplicate_anomaly_recovers_pending_alert():
+    event = generate_batch(GenerationRequest(count=1, seed=10)).events[0]
+    event.value = event.safe_max + 5
+    event = event.recalculated_anomaly()
+    existing = {**event.model_dump(mode="json"), "alert_published": False}
+    store = RecoveryStore(existing)
+    alerts = FakeProducer()
+    processor = SensorEventProcessor(
+        store=store, alert_producer=alerts, dlq_producer=FakeProducer()
+    )
+
+    outcome = processor.process(FakeMessage(event.model_dump_json().encode(), offset=80))
+
+    assert outcome == ProcessOutcome.DUPLICATE
+    assert alerts.published[0][0] == "agro.alerts"
+    assert store.alert_flags == [str(event.event_id)]
+
+
+def test_invalid_redelivery_is_idempotent_but_remains_available_in_dlq():
+    raw = b'{"event_id":"bad","value":"texto","event_timestamp":"no-fecha"}'
+    store = IdempotentErrorStore()
+    dlq = FakeProducer()
+    processor = SensorEventProcessor(store=store, alert_producer=FakeProducer(), dlq_producer=dlq)
+    message = FakeMessage(raw, partition=3, offset=45)
+
+    assert processor.process(message) == ProcessOutcome.INVALID
+    assert processor.process(message) == ProcessOutcome.INVALID
+
+    assert len(store.errors) == 1
+    assert len(dlq.published) == 2
+    assert store.metrics == [{"invalid": 1}]

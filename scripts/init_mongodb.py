@@ -41,6 +41,15 @@ def main() -> int:
             database.processing_errors.create_index(
                 [("created_at", DESCENDING)], name="error_created_at"
             )
+            database.processing_errors.create_index(
+                [
+                    ("source_topic", ASCENDING),
+                    ("source_partition", ASCENDING),
+                    ("source_offset", ASCENDING),
+                ],
+                unique=True,
+                name="uq_processing_error_source",
+            )
             database.ingestion_runs.create_index(
                 [("batch_id", ASCENDING)], unique=True, name="uq_run_batch"
             )
