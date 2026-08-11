@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
@@ -66,6 +67,10 @@ class SensorEventProcessor:
 
     def _send_invalid_to_dlq(self, message: Any, exc: ValidationError) -> None:
         raw = message.value() or b""
+        try:
+            decoded = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            decoded = {}
         dlq_payload = {
             "original_message": raw.decode("utf-8", errors="replace"),
             "error_description": str(exc),
@@ -74,6 +79,8 @@ class SensorEventProcessor:
             "processing_stage": "consumer_validation",
             **self._metadata(message),
         }
+        if isinstance(decoded, dict) and decoded.get("batch_id") is not None:
+            dlq_payload["batch_id"] = decoded["batch_id"]
         first_observation = self.store.save_processing_error(dlq_payload)
         # Se publica también en cada redelivery para mantener la DLQ disponible
         # si el proceso cayó después del upsert y antes de confirmar Kafka.

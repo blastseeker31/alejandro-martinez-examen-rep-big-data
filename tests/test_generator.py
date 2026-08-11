@@ -58,3 +58,16 @@ def test_malformed_payloads_are_controlled_and_varied():
     assert payloads[0]["value"] == "not-a-number"
     assert "parcel_id" not in payloads[1]
     assert payloads[3]["safe_min"] > payloads[3]["safe_max"]
+
+
+def test_malformed_events_keep_the_batch_id():
+    result = generate_batch(
+        GenerationRequest(count=20, malformed_percent=25, seed=21, scenario=Scenario.STABLE)
+    )
+
+    assert len(result.events) == 20
+    assert all(
+        event["batch_id"] == str(result.batch_id)
+        for event in result.events
+        if isinstance(event, dict)
+    )

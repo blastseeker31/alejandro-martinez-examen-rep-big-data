@@ -36,7 +36,6 @@ def main() -> int:
             database.parcel_aggregates.create_index(
                 [("parcel_id", ASCENDING), ("measurement_type", ASCENDING)],
                 unique=True,
-                name="uq_parcel_measurement",
             )
             database.processing_errors.create_index(
                 [("created_at", DESCENDING)], name="error_created_at"

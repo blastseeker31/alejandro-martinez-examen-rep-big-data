@@ -1,0 +1,77 @@
+# Evidencia end-to-end: batch limpio de 10,000 eventos
+
+Fecha de ejecución: 2026-08-11T04:29:41Z
+Commit: a347f03 (corrección init + reprocesamiento)
+Batch ID: 13140935-8d5a-43a3-addd-7cd5bab38f07
+Endpoint: POST /events/batch
+
+## Estado previo (pre-batch)
+
+raw_readings=11182
+raw_anomalies=3396
+processing_errors=10
+
+## Parámetros del lote
+
+count=10000
+scenario=mixed
+anomaly_percent=15
+duplicate_percent=5
+malformed_percent=3
+seed=20260811
+
+## Resultado de publicación (API)
+
+events_requested=10000
+messages_published=10000
+deliveries_confirmed=10000
+publication_errors=[]
+duration_seconds=0.374253
+events_per_second=26719.9
+
+generator_stats:
+- requested=10000
+- anomalies_requested=1382
+- duplicates_requested=485
+- malformed_requested=300
+
+## Estado post-batch (MongoDB)
+
+raw_readings=20397  (delta=+9215)
+batch_readings=9215
+batch_anomalies=2763
+raw_anomalies=6159  (delta=+2763)
+processing_errors=310  (delta=+300)
+batch_errors=300
+
+## Kafka lag post-procesamiento
+
+lag=0 en las 6 particiones del topic agro.sensor-readings
+3 miembros activos en el grupo agro-sensor-processors
+Asignación: 2 particiones por consumidor
+
+## Reconciliación matemática
+
+Publicados: 10,000
+Lecturas válidas insertadas: 9,215
+Duplicados rechazados (DuplicateKeyError): 485
+Inválidos registrados en processing_errors: 300
+Lecturas + duplicados + inválidos = 9,215 + 485 + 300 = 10,000 ✓
+
+Observación: los duplicados incluyen tanto los 485 solicitados por el generador
+como duplicados naturales del mismo event_id si un mismo evento válido fue
+enviado más de una vez. El conteo exacto de duplicados naturales no se separa
+del duplicado intencional, pero la suma total cuadra.
+
+## Distribución por parcela
+
+HN-ATL-001=884, HN-ATL-002=482, HN-CHO-001=551, HN-CHO-002=366,
+HN-COL-001=953, HN-COL-002=729, HN-COM-001=499, HN-COM-002=714,
+HN-COP-001=488, HN-COR-001=784, HN-COR-002=379, HN-FCO-001=616,
+HN-FCO-002=452, HN-OLN-001=646, HN-OLN-002=887, HN-VAL-001=510,
+unknown=60
+
+## Distribución por medición
+
+air_humidity=2592, ph=2378, soil_moisture=2459, temperature=2511,
+wind_speed=60

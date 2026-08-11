@@ -139,8 +139,8 @@ def _make_valid_event(
     return SensorReading.model_validate(payload)
 
 
-def generate_malformed_payload(kind: str) -> dict[str, Any]:
-    batch_id = uuid4()
+def generate_malformed_payload(kind: str, batch_id: UUID | None = None) -> dict[str, Any]:
+    batch_id = batch_id or uuid4()
     parcel = PARCELS[0]
     request = GenerationRequest(count=1, source=SourceType.WEB_BATCH)
     payload = _make_valid_event(parcel, batch_id, request, random.Random(5), False).model_dump(
@@ -187,7 +187,9 @@ def generate_batch(request: GenerationRequest) -> GenerationResult:
         "unknown_measurement",
     ]
     for index in range(malformed_count):
-        generated.append(generate_malformed_payload(malformed_kinds[index % len(malformed_kinds)]))
+        generated.append(
+            generate_malformed_payload(malformed_kinds[index % len(malformed_kinds)], batch_id)
+        )
     rng.shuffle(generated)
     return GenerationResult(
         batch_id=batch_id,

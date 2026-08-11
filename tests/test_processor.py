@@ -128,7 +128,7 @@ def test_duplicate_does_not_update_aggregate_or_alert():
 
 
 def test_invalid_message_is_saved_and_sent_to_dlq():
-    raw = b'{"event_id":"bad","value":"texto","event_timestamp":"no-fecha"}'
+    raw = b'{"event_id":"bad","batch_id":"batch-123","value":"texto","event_timestamp":"no-fecha"}'
     store = FakeStore()
     dlq = FakeProducer()
     processor = SensorEventProcessor(store=store, alert_producer=FakeProducer(), dlq_producer=dlq)
@@ -141,6 +141,7 @@ def test_invalid_message_is_saved_and_sent_to_dlq():
     dlq_payload = dlq.published[0][1]
     assert dlq_payload["source_partition"] == 3
     assert dlq_payload["source_offset"] == 44
+    assert dlq_payload["batch_id"] == "batch-123"
 
 
 def test_duplicate_anomaly_recovers_pending_alert():
