@@ -117,6 +117,51 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "-m", "consumer.main"]
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      MONGO_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/${MONGO_DATABASE:-agrostream}?authSource=admin
+      MONGO_DATABASE: ${MONGO_DATABASE:-agrostream}
+      CONSUMER_POLL_TIMEOUT_SECONDS: ${CONSUMER_POLL_TIMEOUT_SECONDS:-1}
+      ALERT_RATE_MEDIUM_PERCENT: ${ALERT_RATE_MEDIUM_PERCENT:-10}
+      ALERT_RATE_HIGH_PERCENT: ${ALERT_RATE_HIGH_PERCENT:-30}
+    depends_on:
+      kafka_init:
+        condition: service_completed_successfully
+      mongo_init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/agrostream_consumer_heartbeat"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  web_ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["streamlit", "run", "web_ui/app.py", "--server.address=0.0.0.0", "--server.port=8501", "--server.headless=true"]
+    environment:
+      API_BASE_URL: http://producer_api:8000
+    ports:
+      - "${STREAMLIT_HOST_PORT:-8501}:8501"
+    depends_on:
+      producer_api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health', timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 25s
+    restart: unless-stopped
+
 volumes:
   kafka_data:
     name: agrostream_kafka_data

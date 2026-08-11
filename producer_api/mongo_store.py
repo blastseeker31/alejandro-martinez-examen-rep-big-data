@@ -45,5 +45,36 @@ class MongoStore:
             ),
         }
 
+    def get_aggregates(
+        self, parcel_id: str, measurement_type: str | None = None
+    ) -> list[dict[str, Any]]:
+        query: dict[str, Any] = {"parcel_id": parcel_id}
+        if measurement_type:
+            query["measurement_type"] = measurement_type
+        return list(self.database.parcel_aggregates.find(query, {"_id": 0}))
+
+    def get_readings(
+        self,
+        parcel_id: str,
+        measurement_type: str | None = None,
+        limit: int = 100,
+        start_at: datetime | None = None,
+        end_at: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        query: dict[str, Any] = {"parcel_id": parcel_id}
+        if measurement_type:
+            query["measurement_type"] = measurement_type
+        if start_at or end_at:
+            query["event_timestamp"] = {}
+            if start_at:
+                query["event_timestamp"]["$gte"] = start_at
+            if end_at:
+                query["event_timestamp"]["$lte"] = end_at
+        return list(
+            self.database.raw_readings.find(query, {"_id": 0})
+            .sort("event_timestamp", -1)
+            .limit(min(limit, 500))
+        )
+
     def close(self) -> None:
         self.client.close()

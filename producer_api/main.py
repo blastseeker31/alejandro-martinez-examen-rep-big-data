@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from time import monotonic
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
 from producer_api.kafka_producer import EventProducer
@@ -181,6 +181,36 @@ def create_app(producer: Any | None = None, store: Any | None = None) -> FastAPI
     @app.get("/metrics/summary", tags=["métricas"])
     def metrics_summary(request: Request) -> dict[str, Any]:
         return request.app.state.store.summary()
+
+    @app.get("/dashboard/aggregates", tags=["dashboard"])
+    def dashboard_aggregates(
+        request: Request,
+        parcel_id: str,
+        measurement_type: str | None = None,
+    ) -> list[dict[str, Any]]:
+        return request.app.state.store.get_aggregates(parcel_id, measurement_type)
+
+    @app.get("/dashboard/readings", tags=["dashboard"])
+    def dashboard_readings(
+        request: Request,
+        parcel_id: str,
+        measurement_type: str | None = None,
+        limit: int = Query(default=100, ge=1, le=500),
+        start_at: datetime | None = None,
+        end_at: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        for name, value in (("start_at", start_at), ("end_at", end_at)):
+            if value is not None and (
+                value.tzinfo is None or value.utcoffset() != UTC.utcoffset(value)
+            ):
+                raise HTTPException(status_code=422, detail=f"{name} debe estar en UTC")
+        return request.app.state.store.get_readings(
+            parcel_id,
+            measurement_type,
+            limit,
+            start_at.astimezone(UTC) if start_at else None,
+            end_at.astimezone(UTC) if end_at else None,
+        )
 
     return app
 

@@ -18,12 +18,20 @@ TOPICS = {
 
 def main() -> int:
     bootstrap = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
-    admin = AdminClient({"bootstrap.servers": bootstrap, "socket.timeout.ms": 5000})
+    replication_factor = int(os.getenv("KAFKA_REPLICATION_FACTOR", "1"))
+    admin = AdminClient(
+        {"bootstrap.servers": bootstrap, "socket.timeout.ms": 5000}
+    )
+
     for attempt in range(1, 31):
         try:
             metadata = admin.list_topics(timeout=5)
             missing = [
-                NewTopic(name, num_partitions=partitions, replication_factor=1)
+                NewTopic(
+                    name,
+                    num_partitions=partitions,
+                    replication_factor=replication_factor,
+                )
                 for name, partitions in TOPICS.items()
                 if name not in metadata.topics
             ]
@@ -41,6 +49,7 @@ def main() -> int:
         except Exception as exc:  # broker puede tardar en iniciar
             print(f"topic_init_attempt={attempt} error={exc}")
             time.sleep(2)
+
     print("No fue posible conectar con Kafka después de 30 intentos", file=sys.stderr)
     return 1
 
