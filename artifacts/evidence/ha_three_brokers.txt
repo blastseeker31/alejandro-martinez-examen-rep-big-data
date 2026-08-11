@@ -1,0 +1,65 @@
+# Evidencia HA de tres brokers Kafka
+
+Fecha de ejecución: 2026-08-10T21:26:29-06:00
+Commit de configuración: 5971a20
+Proyecto Compose aislado: agrostream-ha
+
+## Validación y arranque
+
+Comando:
+`docker compose -f docker-compose.yml -f docker-compose.ha.yml config --quiet`
+
+Resultado: exit 0.
+
+`kafka_init` terminó con exit 0 y reportó:
+
+```text
+topic_created=agro.sensor-readings
+topic_created=agro.sensor-readings-dlq
+topic_created=agro.alerts
+topics_ready=agro.alerts,agro.sensor-readings,agro.sensor-readings-dlq
+```
+
+Los brokers `kafka-1`, `kafka-2` y `kafka-3` quedaron healthy.
+
+## Réplicas iniciales
+
+Topic principal: 6 particiones, ReplicationFactor=3, min.insync.replicas=2, ISR completo `[1,2,3]` en las seis particiones.
+
+DLQ: 3 particiones, ReplicationFactor=3, min.insync.replicas=2, ISR completo `[1,2,3]`.
+
+Alertas: 3 particiones, ReplicationFactor=3, min.insync.replicas=2, ISR completo `[1,2,3]`.
+
+## Publicación antes de detener broker
+
+Bootstrap externo: `localhost:9093,localhost:9094,localhost:9095`
+
+Resultado real:
+
+```text
+{'published': 100, 'delivery_errors': 0, 'callbacks': 100, 'errors': []}
+```
+
+## Publicación con kafka-2 detenido
+
+Comando de interrupción:
+`docker compose -p agrostream-ha -f docker-compose.yml -f docker-compose.ha.yml stop kafka-2`
+
+Resultado: `kafka-2` stopped.
+
+Publicación posterior:
+
+```text
+{'published': 100, 'delivery_errors': 0, 'callbacks': 100, 'errors': []}
+```
+
+Durante la interrupción, el topic principal mantuvo ReplicationFactor=3 y min.insync.replicas=2. El ISR observado fue `[1,3]` en las seis particiones; los líderes se mantuvieron únicamente en brokers activos.
+
+## Recuperación
+
+Comando:
+`docker compose -p agrostream-ha -f docker-compose.yml -f docker-compose.ha.yml start kafka-2`
+
+Tras 15 segundos, `kafka-2` volvió a healthy y el ISR observado volvió a incluir los tres brokers en las seis particiones: `[1,3,2]` o el orden equivalente reportado por Kafka.
+
+Conclusión: HA de tres brokers comprobada para publicación con un broker detenido y recuperación de ISR.
