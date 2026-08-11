@@ -158,8 +158,23 @@ def render_dashboard(parcels: list[dict]) -> None:
 
     frame = pd.DataFrame(readings)
     if frame.empty:
+        st.info("Todavía no existen lecturas válidas para esta parcela y filtro.")
         return
-    frame["event_timestamp"] = pd.to_datetime(frame["event_timestamp"], utc=True)
+    frame["event_timestamp"] = pd.to_datetime(
+        frame["event_timestamp"],
+        format="mixed",
+        utc=True,
+        errors="coerce",
+    )
+    nat_count = int(frame["event_timestamp"].isna().sum())
+    if nat_count:
+        st.warning(
+            f"{nat_count} lectura(s) con fecha inválida fueron descartadas."
+        )
+    frame = frame.dropna(subset=["event_timestamp"]).copy()
+    if frame.empty:
+        st.info("No fue posible graficar: todas las fechas consultadas son inválidas.")
+        return
     frame = frame.sort_values("event_timestamp")
     st.caption(f"Última actualización de la consulta: {datetime.now(UTC).isoformat()}")
     chart = go.Figure()
