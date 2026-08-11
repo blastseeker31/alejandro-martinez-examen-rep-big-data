@@ -120,8 +120,14 @@ Este archivo es el control operativo del proyecto. Se actualiza después de cada
 
 ### Fase 3 — Productor
 
-- Estado: pendiente.
-- Evidencia: pendiente.
+- Estado: completada.
+- Commit: pendiente de publicar.
+- API: FastAPI en `http://localhost:8000`, con `/health`, `/ready`, `/parcels`, `/events/single`, `/events/batch`, `/events/load-test`, `/runs/{batch_id}` y `/metrics/summary`.
+- Producer: `acks=all`, `enable.idempotence=true`, reintentos, compresión LZ4, batching, callbacks y flush controlado.
+- Envío individual real: confirmado por Kafka en partición 2, offset 0.
+- Lote real de 1.000: 1.000 confirmados; 20.265,89 eventos/s medidos por la API.
+- Lote real de 10.000: 10.000 confirmados; 33.260,59 eventos/s medidos por la API.
+- Aclaración: aún no se cuentan como procesados ni almacenados; el consumidor se implementa en Fase 4.
 
 ### Fase 4 — Procesamiento
 

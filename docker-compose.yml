@@ -89,6 +89,34 @@ services:
         condition: service_healthy
     restart: "no"
 
+  producer_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["uvicorn", "producer_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      MONGO_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/${MONGO_DATABASE:-agrostream}?authSource=admin
+      MONGO_DATABASE: ${MONGO_DATABASE:-agrostream}
+      MAX_BATCH_SIZE: ${MAX_BATCH_SIZE:-10000}
+      PRODUCER_COMPRESSION_TYPE: ${PRODUCER_COMPRESSION_TYPE:-lz4}
+      PRODUCER_LINGER_MS: ${PRODUCER_LINGER_MS:-10}
+      PRODUCER_BATCH_SIZE: ${PRODUCER_BATCH_SIZE:-131072}
+    ports:
+      - "${API_HOST_PORT:-8000}:8000"
+    depends_on:
+      kafka_init:
+        condition: service_completed_successfully
+      mongo_init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
 volumes:
   kafka_data:
     name: agrostream_kafka_data
