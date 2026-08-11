@@ -1,0 +1,62 @@
+# Evidencia de reprocesamiento batch idempotente
+
+Fecha de ejecución: 2026-08-10 (hora local; timestamps de Mongo en UTC)
+Commit de la corrección: a347f03
+Script: `scripts/recompute_aggregates.py`
+
+## Snapshot previo
+
+Consulta ejecutada contra MongoDB local antes del reprocesamiento:
+
+```text
+raw_readings=11182
+aggregate_documents=64
+aggregate_total=11182
+aggregate_anomalous=3396
+```
+
+## Primera ejecución
+
+Comando ejecutado desde el host con `MONGO_URI` apuntando a `localhost:27017`:
+
+```text
+.venv/bin/python scripts/recompute_aggregates.py
+```
+
+Resultado real:
+
+```text
+{'processed_readings': 11182, 'aggregate_documents': 64, 'duration_seconds': 0.088587}
+```
+
+Snapshot posterior:
+
+```text
+raw_readings=11182
+aggregate_documents=64
+aggregate_total=11182
+aggregate_anomalous=3396
+canonical_sha256=7de1a45d6506f9e54c6047fb5af89baf0fbdf2f2bfb830cbd2d822d8126bf8b5
+```
+
+## Segunda ejecución
+
+Resultado real:
+
+```text
+{'processed_readings': 11182, 'aggregate_documents': 64, 'duration_seconds': 0.065886}
+```
+
+Snapshot final:
+
+```text
+raw_readings=11182
+aggregate_documents=64
+aggregate_total=11182
+aggregate_anomalous=3396
+canonical_sha256=7de1a45d6506f9e54c6047fb5af89baf0fbdf2f2bfb830cbd2d822d8126bf8b5
+```
+
+Conclusión: los conteos coinciden con `raw_readings`, y el SHA canónico de las agregaciones se mantuvo idéntico entre ejecuciones. El reprocesamiento es idempotente para este estado real.
+
+Limitación: el script actual reconstruye globalmente `parcel_aggregates`; la reconciliación aislada por `batch_id` se implementará en el script de pruebas end-to-end.
